@@ -27,7 +27,7 @@ def get_user_session(login=I_LOGIN, password=I_PASSWORD):
 
 @lru_cache()
 def get_group_session(token=SLAVE_TOKEN):
-	return vk_api.VkApi(token)
+	return vk_api.VkApi(token=token)
 
 
 @lru_cache()
