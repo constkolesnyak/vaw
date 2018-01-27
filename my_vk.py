@@ -146,7 +146,7 @@ class User(Member):
 		super().__init__(info_for_base)
 
 	def get_groups(self):
-		return map(self._to_group, raw_get_groups(user_id=self.id))
+		return map(User._to_group, raw_get_groups(user_id=self.id))
 
 	def get_friends(self):
 		return map(User, raw_get_friends(user_id=self.id))
