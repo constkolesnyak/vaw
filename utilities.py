@@ -1,5 +1,5 @@
 import sys
-from .my_config import I_ID
+from .config import I_ID
 from .my_vk import API, get_api
 import logging
 from functools import lru_cache

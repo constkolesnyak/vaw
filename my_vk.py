@@ -1,7 +1,6 @@
 from enum import IntEnum, unique
 import vk_api
-from .my_config import *
-from .vk_config import *
+from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
