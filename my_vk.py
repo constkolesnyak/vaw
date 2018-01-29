@@ -1,21 +1,21 @@
-import enum
+from enum import IntEnum, unique
 import vk_api
-from .config import *
+from .my_config import *
+from .vk_config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
-from funcy import compose, rpartial
-from operator import neg
+from funcy import rpartial
 
 
-API = enum.IntEnum('API', 'i slave concubine')
-
-
-class ObjDict(dict):
+class ObjDict(dict):  # js-like dict
 	def __new__(cls, *args, **kwargs):
 		self = dict.__new__(cls, *args, **kwargs)
 		self.__dict__ = self
 		return self
+
+
+API = IntEnum('API', 'i slave concubine')
 
 
 @lru_cache()
@@ -77,15 +77,12 @@ class Member(VkObject):
 		info = ObjDict(info)
 
 		self.name = info.name
+		self.screen_name = info.screen_name
 		self.deactivated = info.deactivated  # False or str
-		if self.deactivated:
-			url_end = ('club' if info.id < 0 else 'id') + str(info.id)
-		else:
-			url_end = self.screen_name = info.screen_name
 
 		super().__init__(dict(
 			id=info.id,
-			url=BASE_VK_URL + url_end
+			url=BASE_VK_URL + self.screen_name
 		))
 
 	def __lt__(self, other):
@@ -104,55 +101,47 @@ class Member(VkObject):
 		return map(Post, raw_get_posts(owner_id=self.id))
 
 
+def _converted_member_info(raw_info, screen_name_prefix):
+	if hasattr(raw_info, 'name'):
+		name = raw_info.name  # group
+		raw_info.id = -abs(raw_info.id)
+	else:
+		name = raw_info.first_name + ' ' + raw_info.last_name  # user
+
+	return dict(
+		id=raw_info.id,
+		name=name,
+		screen_name=raw_info.get('screen_name', raw_info.get('domain', screen_name_prefix + str(raw_info.id))),
+		deactivated=raw_info.get('deactivated', False)
+	)
+
+
+@unique
+class Openness(IntEnum):
+	public, closed, private = range(3)
+
+
 class Group(Member):
-	def __init__(self, group_id):
-		raw_info = ObjDict(get_api().groups.getById(group_id=-group_id)[0])
+	def __init__(self, raw_info):
+		super().__init__(_converted_member_info(ObjDict(raw_info), 'club'))
 
-		self.openness = raw_info.is_closed
 
-		info_for_base = dict(
-			id=group_id,
-			name=raw_info.name,
-			deactivated=False
-		)
-		if 'deactivated' in raw_info.keys():
-			info_for_base['deactivated'] = raw_info.deactivated
-		else:
-			info_for_base.update(screen_name=raw_info.screen_name)
-		super().__init__(info_for_base)
+def group_by_id(group_id):
+	return Group(get_api().groups.getById(group_id=-group_id)[0])
 
 
 class User(Member):
-	_to_group = compose(Group, neg)
-
-	def __init__(self, user_id):
-		raw_info = ObjDict(get_api().users.get(
-			user_ids=user_id,
-			fields='screen_name'
-		)[0])
-
-		self.first_name = raw_info.first_name
-		self.second_name = raw_info.last_name
-
-		info_for_base = dict(
-			id=user_id,
-			name='{} {}'.format(self.first_name, self.second_name),
-			deactivated=False
-		)
-		if 'deactivated' in raw_info.keys():
-			info_for_base['deactivated'] = raw_info.deactivated
-		else:
-			info_for_base.update(screen_name=raw_info.screen_name)
-		super().__init__(info_for_base)
+	def __init__(self, raw_info):
+		super().__init__(_converted_member_info(ObjDict(raw_info), 'id'))
 
 	def get_groups(self):
-		return map(User._to_group, raw_get_groups(user_id=self.id))
+		return map(Group, raw_get_groups(user_id=self.id, extended=1))
 
 	def get_friends(self):
-		return map(User, raw_get_friends(user_id=self.id))
+		return map(User, raw_get_friends(user_id=self.id, fields='domain'))
 
 	def get_subscr_users(self):
-		return map(User, get_api().users.getSubscriptions(
+		return map(user_by_id, get_api().users.getSubscriptions(
 			user_id=self.id
 		)['users']['items'])
 
@@ -170,9 +159,11 @@ class User(Member):
 		)[0]['online'])
 
 
-@enum.unique
-class Openness(enum.IntEnum):
-	public, closed, private = range(3)
+def user_by_id(user_id):
+	return User(get_api().users.get(
+		user_ids=user_id,
+		fields='screen_name'
+	)[0])
 
 
 Marked = namedtuple('Marked', 'is_liked is_reposted')

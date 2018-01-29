@@ -1,6 +1,5 @@
 import sys
-import requests
-from .config import I_ID, BASE_VK_URL
+from .my_config import I_ID
 from .my_vk import API, get_api
 import logging
 from functools import lru_cache
@@ -21,7 +20,7 @@ def get_logger(name, level=logging.INFO, file=sys.stdout):
 	return logger
 
 
-def url2id(url):
+def id_by_url(url):
 	response = get_api().utils.resolveScreenName(screen_name=url.split('/')[-1])
 	return -response['object_id'] if response['type'] == 'group' else response['object_id']
 
@@ -34,8 +33,3 @@ def notice(message='Выполнение скрипта завершено', rec
 	else:
 		raise ValueError('invalid api_nbr')
 	get_api(api_nbr).messages.send(user_id=I_ID, message=message + (end if recourse else ''))
-
-
-def download_file(url, path):
-	with open(path, "wb") as f:
-		f.write(requests.get(url).content)
