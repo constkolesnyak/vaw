@@ -4,9 +4,9 @@ from json import load
 with open('vk_api_wrap/my_data.json') as f:  # you can change path
 	data = load(f)
 
-I_LOGIN = data['login']  # your login,
-I_PASSWORD = data['password']  # password
-I_ID = data['id']  # and id in vk
+I_LOGIN = data['login']  # your login (str),
+I_PASSWORD = data['password']  # password (str)
+I_ID = data['id']  # and id (int) in vk
 
 
 BASE_VK_URL = 'https://vk.com/'
