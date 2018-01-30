@@ -41,6 +41,9 @@ raw_get_posts = rg_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
 raw_get_comments = rg_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
 raw_get_groups = rg_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
 raw_get_friends = rg_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
+_raw_get_subscrs = rg_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)  # don't use it
+_is_user = lambda raw_info: raw_info['type'] == 'profile'  # don't use it
+raw_get_subscr_users = lambda **params: filter(_is_user, _raw_get_subscrs(**params))
 
 del rg_creator
 
@@ -129,9 +132,11 @@ class User(Member):
 		return map(User, raw_get_friends(user_id=self.id, fields='domain'))
 
 	def get_subscr_users(self):
-		return map(user_by_id, get_api().users.getSubscriptions(
-			user_id=self.id
-		)['users']['items'])
+		return map(User, raw_get_subscr_users(
+			user_id=self.id,
+			extended=1,  # important!
+			fields='screen_name'
+		))
 
 	def get_subscrs(self):
 		return chain(
