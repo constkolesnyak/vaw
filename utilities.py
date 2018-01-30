@@ -1,6 +1,6 @@
 import sys
 from .config import I_ID
-from .my_vk import API, get_api
+from .my_vk import get_api
 import logging
 from functools import lru_cache
 import logging
@@ -25,11 +25,5 @@ def id_by_url(url):
 	return -response['object_id'] if response['type'] == 'group' else response['object_id']
 
 
-def notice(message='Выполнение скрипта завершено', recourse=True, api_nbr=API.slave):
-	if api_nbr == API.slave:
-		end = ', мой хозяин!'
-	elif api_nbr == API.concubine:
-		end = ', мой властелин!'
-	else:
-		raise ValueError('invalid api_nbr')
-	get_api(api_nbr).messages.send(user_id=I_ID, message=message + (end if recourse else ''))
+def notify(api, message='Выполнение скрипта завершено', user_id=I_ID):
+	api.messages.send(user_id=user_id, message=message)

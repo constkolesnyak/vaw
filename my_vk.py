@@ -14,9 +14,6 @@ class ObjDict(dict):  # js-like dict
 		return self
 
 
-API = IntEnum('API', 'i slave concubine')
-
-
 @lru_cache()
 def get_user_session(login=I_LOGIN, password=I_PASSWORD):
 	session = vk_api.VkApi(login, password)
@@ -25,21 +22,13 @@ def get_user_session(login=I_LOGIN, password=I_PASSWORD):
 
 
 @lru_cache()
-def get_group_session(token=SLAVE_TOKEN):
+def get_group_session(token):
 	return vk_api.VkApi(token=token)
 
 
 @lru_cache()
-def get_api(api_nbr=API.i):
-	if api_nbr == API.i:
-		return get_user_session().get_api()
-	elif api_nbr == API.slave:
-		token = SLAVE_TOKEN
-	elif api_nbr == API.concubine:
-		token = CONCUBINE_TOKEN
-	else:
-		raise ValueError('invalid api_nbr')
-	return get_group_session(token).get_api()
+def get_api(session=get_user_session()):
+	return session.get_api()
 
 
 def _get_all_tool(method, count, session=get_user_session(), **params):
@@ -101,15 +90,15 @@ class Member(VkObject):
 
 
 def _converted_member_info(raw_info, screen_name_prefix):
-	if hasattr(raw_info, 'name'):
-		name = raw_info.name  # group
+	raw_info = ObjDict(raw_info)
+	if hasattr(raw_info, 'name'):  # group
 		raw_info.id = -abs(raw_info.id)
-	else:
-		name = raw_info.first_name + ' ' + raw_info.last_name  # user
+	else:  # user
+		raw_info.name = raw_info.first_name + ' ' + raw_info.last_name
 
 	return dict(
 		id=raw_info.id,
-		name=name,
+		name=raw_info.name,
 		screen_name=raw_info.get('screen_name', raw_info.get('domain', screen_name_prefix + str(raw_info.id))),
 		deactivated=raw_info.get('deactivated', False)
 	)
@@ -122,7 +111,7 @@ class Openness(IntEnum):
 
 class Group(Member):
 	def __init__(self, raw_info):
-		super().__init__(_converted_member_info(ObjDict(raw_info), 'club'))
+		super().__init__(_converted_member_info(raw_info, 'club'))
 
 
 def group_by_id(group_id):
@@ -131,7 +120,7 @@ def group_by_id(group_id):
 
 class User(Member):
 	def __init__(self, raw_info):
-		super().__init__(_converted_member_info(ObjDict(raw_info), 'id'))
+		super().__init__(_converted_member_info(raw_info, 'id'))
 
 	def get_groups(self):
 		return map(Group, raw_get_groups(user_id=self.id, extended=1))
