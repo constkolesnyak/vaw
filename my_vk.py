@@ -4,14 +4,20 @@ from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
-from funcy import rpartial
+from funcy import rpartial, compose
 
 
-class ObjDict(dict):  # js-like dict
+class ObjDict(dict):
 	def __new__(cls, *args, **kwargs):
 		self = dict.__new__(cls, *args, **kwargs)
 		self.__dict__ = self
 		return self
+
+	def mget(self, *keys, default=None):
+		for k in keys:
+			if k in self:
+				return self[k]
+		return default
 
 
 @lru_cache()
@@ -42,8 +48,9 @@ raw_get_comments = rg_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
 raw_get_groups = rg_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
 raw_get_friends = rg_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
 _raw_get_subscrs = rg_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)  # don't use it
-_is_user = lambda raw_info: raw_info['type'] == 'profile'  # don't use it
-raw_get_subscr_users = lambda **params: filter(_is_user, _raw_get_subscrs(**params))
+_is_user = lambda info: info['type'] == 'profile'  # don't use it
+_only_users = partial(filter, _is_user)  # don't use it
+raw_get_subscr_users = compose(_only_users, _raw_get_subscrs)
 
 del rg_creator
 
@@ -56,11 +63,7 @@ class VkObject:
 		self.url = info.url
 
 	def __eq__(self, other):
-		if type(self) != type(other):
-			return False
-		if isinstance(self, Publication):
-			return self.id == other.id and self.owner_id == other.owner_id
-		return self.id == other.id
+		return self.id == other.id and type(self) == type(other)
 
 
 class Member(VkObject):
@@ -69,7 +72,7 @@ class Member(VkObject):
 
 		self.name = info.name
 		self.screen_name = info.screen_name
-		self.deactivated = info.deactivated  # False or str
+		self.deactivated = info.deactivated  # str or False
 
 		super().__init__(dict(
 			id=info.id,
@@ -82,28 +85,22 @@ class Member(VkObject):
 	def __repr__(self):
 		return '{} ({})'.format(self.name, self.url)
 
-	def delete_post(self, post_id):
-		get_api().wall.delete(
-			owner_id=self.id,
-			post_id=post_id
-		)
-
-	def get_posts(self):
-		return map(Post, raw_get_posts(owner_id=self.id))
+	def get_posts(self, fields=''):
+		return map(Post, raw_get_posts(owner_id=self.id, fields=fields))
 
 
-def _converted_member_info(raw_info, screen_name_prefix):
-	raw_info = ObjDict(raw_info)
-	if hasattr(raw_info, 'name'):  # group
-		raw_info.id = -abs(raw_info.id)
-	else:  # user
-		raw_info.name = raw_info.first_name + ' ' + raw_info.last_name
+def _converted_to_member_info(info, screen_name_prefix):
+	info = ObjDict(info)
+	if screen_name_prefix == 'club':
+		info.id = -abs(info.id)
+	else:
+		info.name = info.first_name + ' ' + info.last_name
 
 	return dict(
-		id=raw_info.id,
-		name=raw_info.name,
-		screen_name=raw_info.get('screen_name', raw_info.get('domain', screen_name_prefix + str(raw_info.id))),
-		deactivated=raw_info.get('deactivated', False)
+		id=info.id,
+		name=info.name,
+		screen_name=info.mget('screen_name', 'domain', default=screen_name_prefix + str(info.id)),
+		deactivated=info.get('deactivated', False)
 	)
 
 
@@ -113,29 +110,34 @@ class Openness(IntEnum):
 
 
 class Group(Member):
-	def __init__(self, raw_info):
-		super().__init__(_converted_member_info(raw_info, 'club'))
+	def __init__(self, info):
+		self.info = ObjDict(info)
+		super().__init__(_converted_to_member_info(info, 'club'))
 
 
-def group_by_id(group_id):
-	return Group(get_api().groups.getById(group_id=-group_id)[0])
+def group_by_id(group_id, fields=''):
+	return Group(get_api().groups.getById(
+		group_id=-group_id,
+		fields=fields
+	)[0])
 
 
 class User(Member):
-	def __init__(self, raw_info):
-		super().__init__(_converted_member_info(raw_info, 'id'))
+	def __init__(self, info):
+		self.info = ObjDict(info)
+		super().__init__(_converted_to_member_info(info, 'id'))
 
-	def get_groups(self):
-		return map(Group, raw_get_groups(user_id=self.id, extended=1))
+	def get_groups(self, fields=''):
+		return map(Group, raw_get_groups(user_id=self.id, extended=1, fields=fields))
 
-	def get_friends(self):
-		return map(User, raw_get_friends(user_id=self.id, fields='domain'))
+	def get_friends(self, fields=''):
+		return map(User, raw_get_friends(user_id=self.id, fields='domain,' + fields))
 
-	def get_subscr_users(self):
+	def get_subscr_users(self, fields=''):
 		return map(User, raw_get_subscr_users(
 			user_id=self.id,
 			extended=1,  # important!
-			fields='screen_name'
+			fields='screen_name,' + fields
 		))
 
 	def get_subscrs(self):
@@ -152,10 +154,10 @@ class User(Member):
 		)[0]['online'])
 
 
-def user_by_id(user_id):
+def user_by_id(user_id, fields=''):
 	return User(get_api().users.get(
 		user_ids=user_id,
-		fields='screen_name'
+		fields='screen_name,' + fields
 	)[0])
 
 
@@ -176,6 +178,9 @@ class Publication(VkObject):
 			url=info.url
 		))
 
+	def __eq__(self, other):
+		return super().__eq__(self, other) and self.owner_id == other.owner_id
+
 	def __repr__(self):
 		return '{} ({})'.format(self.type, self.url)
 
@@ -189,41 +194,53 @@ class Publication(VkObject):
 		return Marked(bool(marked['liked']), bool(marked['copied']))
 
 
+def _converted_to_publication_info(info, commented_member_id=None, commented_publication_id=None):
+	info = ObjDict(info)
+	owner_id = info.get('owner_id', commented_member_id)
+	if commented_publication_id is None:
+		url_end = info.id
+	else:
+		url_end = '{}?reply={}'.format(commented_publication_id, info.id),
+
+	return dict(
+		id=info.id,
+		url=BASE_VK_URL + 'wall{}_{}'.format(owner_id, url_end),
+		unixtime=info.date,
+		text=info.text,
+		owner_id=owner_id,
+		type=info.get('post_type', 'comment')
+	)
+
+
 class Post(Publication):
-	def __init__(self, raw_info):
-		raw_info = ObjDict(raw_info)
-
-		super().__init__(dict(
-			id=raw_info.id,
-			url=BASE_VK_URL + 'wall{}_{}'.format(raw_info.owner_id, raw_info.id),
-			owner_id=raw_info.owner_id,
-			unixtime=raw_info.date,
-			text=raw_info.text,
-			type=raw_info.post_type
-		))
-
+	def __init__(self, info):
+		info = ObjDict(info)
+		super().__init__(_converted_to_publication_info(info))
 		self._to_comment = rpartial(Comment, self.owner_id, self.id)
 
-	def get_comments(self):
+	def get_comments(self, fields=''):
 		return map(self._to_comment, raw_get_comments(
 			owner_id=self.owner_id,
 			post_id=self.id,
-			preview_length=0
+			preview_length=0,
+			fields=fields
 		))
+
+	def delete(self):
+		return get_api().wall.delete(
+			owner_id=self.owner_id,
+			post_id=self.id
+		)
 
 
 class Comment(Publication):
-	def __init__(self, raw_info, commented_member_id, commented_publication_id):
-		raw_info = ObjDict(raw_info)
+	def __init__(self, info, commented_member_id, commented_publication_id):
+		info = ObjDict(info)
 
 		self.commented_member_id = commented_member_id
 		self.commented_publication_id = commented_publication_id
 
-		super().__init__(dict(
-			id=raw_info.id,
-			url=BASE_VK_URL + 'wall{}_{}?reply={}'.format(commented_member_id, commented_publication_id, raw_info.id),
-			owner_id=commented_member_id,
-			unixtime=raw_info.date,
-			text=raw_info.text,
-			type='comment'
-		))
+		super().__init__(_converted_to_publication_info(info, commented_member_id, commented_publication_id))
+
+	def __eq__(self, other):
+		return super().__eq__(self, other) and self.commented_publication_id == other.commented_publication_id
