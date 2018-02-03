@@ -214,7 +214,8 @@ def _converted_to_publication_info(info, commented_member_id=None, commented_pub
 
 class Post(Publication):
 	def __init__(self, info):
-		info = ObjDict(info)
+		self.info = ObjDict(info)
+		
 		super().__init__(_converted_to_publication_info(info))
 		self._to_comment = rpartial(Comment, self.owner_id, self.id)
 
@@ -235,7 +236,7 @@ class Post(Publication):
 
 class Comment(Publication):
 	def __init__(self, info, commented_member_id, commented_publication_id):
-		info = ObjDict(info)
+		self.info = ObjDict(info)
 
 		self.commented_member_id = commented_member_id
 		self.commented_publication_id = commented_publication_id
