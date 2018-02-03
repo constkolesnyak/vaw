@@ -86,11 +86,15 @@ class Member(VkObject):
 		return '{} ({})'.format(self.name, self.url)
 
 	def get_posts(self, fields=''):
-		return map(Post, raw_get_posts(owner_id=self.id, fields=fields))
+		return map(Post, raw_get_posts(
+			owner_id=self.id,
+			fields=fields
+		))
 
 
 def _converted_to_member_info(info, screen_name_prefix):
 	info = ObjDict(info)
+
 	if screen_name_prefix == 'club':
 		info.id = -abs(info.id)
 	else:
@@ -127,11 +131,18 @@ class User(Member):
 		self.info = ObjDict(info)
 		super().__init__(_converted_to_member_info(info, 'id'))
 
-	def get_groups(self, fields=''):
-		return map(Group, raw_get_groups(user_id=self.id, extended=1, fields=fields))
-
 	def get_friends(self, fields=''):
-		return map(User, raw_get_friends(user_id=self.id, fields='domain,' + fields))
+		return map(User, raw_get_friends(
+			user_id=self.id,
+			fields='domain,' + fields
+		))
+
+	def get_groups(self, fields=''):
+		return map(Group, raw_get_groups(
+			user_id=self.id,
+			extended=1,
+			fields=fields
+		))
 
 	def get_subscr_users(self, fields=''):
 		return map(User, raw_get_subscr_users(
@@ -140,11 +151,11 @@ class User(Member):
 			fields='screen_name,' + fields
 		))
 
-	def get_subscrs(self):
+	def get_subscrs(self, fr_fields='', gr_fields='', susr_fields=''):
 		return chain(
-			self.get_friends(),
-			self.get_groups(),
-			self.get_subscr_users()
+			self.get_friends(fields=fr_fields),
+			self.get_groups(fields=gr_fields),
+			self.get_subscr_users(fields=susr_fields)
 		)
 
 	def is_online(self):
@@ -196,6 +207,7 @@ class Publication(VkObject):
 
 def _converted_to_publication_info(info, commented_member_id=None, commented_publication_id=None):
 	info = ObjDict(info)
+
 	owner_id = info.get('owner_id', commented_member_id)
 	if commented_publication_id is None:
 		url_end = info.id
@@ -204,7 +216,7 @@ def _converted_to_publication_info(info, commented_member_id=None, commented_pub
 
 	return dict(
 		id=info.id,
-		url=BASE_VK_URL + 'wall{}_{}'.format(owner_id, url_end),
+		url= '{}wall{}_{}'.format(BASE_VK_URL, owner_id, url_end),
 		unixtime=info.date,
 		text=info.text,
 		owner_id=owner_id,
@@ -215,7 +227,7 @@ def _converted_to_publication_info(info, commented_member_id=None, commented_pub
 class Post(Publication):
 	def __init__(self, info):
 		self.info = ObjDict(info)
-		
+
 		super().__init__(_converted_to_publication_info(info))
 		self._to_comment = rpartial(Comment, self.owner_id, self.id)
 
