@@ -4,7 +4,7 @@ from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
-from funcy import rpartial, compose, str_join
+from funcy import rpartial, compose
 
 
 class ObjDict(dict):  # js-like dict
@@ -194,7 +194,7 @@ class Publication(VkObject):
 		))
 
 	def __eq__(self, other):
-		return super().__eq__(self, other) and self.owner_id == other.owner_id
+		return super().__eq__(other) and self.owner_id == other.owner_id
 
 	def __repr__(self):
 		return '{} ({})'.format(self.type, self.url)
@@ -220,7 +220,7 @@ def _converted_to_publication_info(info, commented_member_id=None, commented_pub
 
 	return dict(
 		id=info.id,
-		url= '{}wall{}_{}'.format(BASE_VK_URL, owner_id, url_end),
+		url='{}wall{}_{}'.format(BASE_VK_URL, owner_id, url_end),
 		unixtime=info.date,
 		text=info.text,
 		owner_id=owner_id,
@@ -260,4 +260,4 @@ class Comment(Publication):
 		super().__init__(_converted_to_publication_info(info, commented_member_id, commented_publication_id))
 
 	def __eq__(self, other):
-		return super().__eq__(self, other) and self.commented_publication_id == other.commented_publication_id
+		return super().__eq__(other) and self.commented_publication_id == other.commented_publication_id
