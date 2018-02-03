@@ -4,20 +4,14 @@ from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
-from funcy import rpartial, compose
+from funcy import rpartial, compose, str_join
 
 
-class ObjDict(dict):
+class ObjDict(dict):  # js-like dict
 	def __new__(cls, *args, **kwargs):
 		self = dict.__new__(cls, *args, **kwargs)
 		self.__dict__ = self
 		return self
-
-	def mget(self, *keys, default=None):
-		for k in keys:
-			if k in self:
-				return self[k]
-		return default
 
 
 @lru_cache()
@@ -51,6 +45,7 @@ _raw_get_subscrs = rg_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_RE
 _is_user = lambda info: info['type'] == 'profile'  # don't use it
 _only_users = partial(filter, _is_user)  # don't use it
 raw_get_subscr_users = compose(_only_users, _raw_get_subscrs)
+raw_get_followers = rg_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
 
 del rg_creator
 
@@ -103,7 +98,7 @@ def _converted_to_member_info(info, screen_name_prefix):
 	return dict(
 		id=info.id,
 		name=info.name,
-		screen_name=info.mget('screen_name', 'domain', default=screen_name_prefix + str(info.id)),
+		screen_name=info.get('screen_name', screen_name_prefix + str(info.id)),
 		deactivated=info.get('deactivated', False)
 	)
 
@@ -134,7 +129,7 @@ class User(Member):
 	def get_friends(self, fields=''):
 		return map(User, raw_get_friends(
 			user_id=self.id,
-			fields='domain,' + fields
+			fields='screen_name,' + fields
 		))
 
 	def get_groups(self, fields=''):
@@ -158,11 +153,20 @@ class User(Member):
 			self.get_subscr_users(fields=susr_fields)
 		)
 
+	def get_followers(self, fields=''):
+		return map(User, raw_get_followers(
+			user_id=self.id,
+			fields='screen_name,' + fields
+		))
+
 	def is_online(self):
 		return bool(get_api().users.get(
 			user_ids=self.id,
 			fields='online'
 		)[0]['online'])
+
+	def is_app_user(self):
+		return bool(get_api().users.isAppUser(user_id=self.id))
 
 
 def user_by_id(user_id, fields=''):
