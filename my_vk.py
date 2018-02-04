@@ -42,8 +42,8 @@ def get_api(session=get_main_session()):
 	return session.get_api()
 
 
-def _get_all_tool(method, count, session=get_main_session(), **params):
-	return vk_api.VkTools(session).get_all_iter(method, count, params)
+def _get_all_tool(method, count, **params):
+	return vk_api.VkTools(get_main_session()).get_all_iter(method, count, params)
 
 
 rg_creator = lambda *t: partial(_get_all_tool, *t)
