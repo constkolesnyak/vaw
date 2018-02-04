@@ -26,12 +26,23 @@ def get_group_session(token):
 	return vk_api.VkApi(token=token)
 
 
+_main_session = get_user_session()
+
+
+def set_main_session(new_ms):
+	global _main_session
+	_main_session = new_ms
+
+
+get_main_session = lambda: _main_session
+
+
 @lru_cache()
-def get_api(session=get_user_session()):
+def get_api(session=get_main_session()):
 	return session.get_api()
 
 
-def _get_all_tool(method, count, session=get_user_session(), **params):
+def _get_all_tool(method, count, session=get_main_session(), **params):
 	return vk_api.VkTools(session).get_all_iter(method, count, params)
 
 
@@ -85,6 +96,16 @@ class Member(VkObject):
 			owner_id=self.id,
 			fields=fields
 		))
+
+	def get_posts_by_ids(self, post_ids, fields=''):
+		prefix = str(self.id) + '_'
+		return map(Post, get_api().wall.getById(
+			posts=','.join(prefix + str(post_id) for post_id in post_ids),
+			fields=fields
+		))
+
+	def get_post_by_id(self, post_id, fields=''):
+		return next(self.get_posts_by_ids((post_id,), fields))
 
 
 def _converted_to_member_info(info, screen_name_prefix):
