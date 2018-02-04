@@ -37,9 +37,8 @@ def set_main_session(new_ms):
 get_main_session = lambda: _main_session
 
 
-@lru_cache()
-def get_api(session=get_main_session()):
-	return session.get_api()
+def get_api(session=None):
+	return get_main_session().get_api() if session is None else session.get_api()
 
 
 def _get_all_tool(method, count, **params):
