@@ -1,4 +1,4 @@
 *.json
-*.pyc
+*.py[co]
 *.idea
 *.DS_Store

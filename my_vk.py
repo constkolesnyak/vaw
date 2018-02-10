@@ -34,7 +34,8 @@ def set_main_session(new_ms):
 	_main_session = new_ms
 
 
-get_main_session = lambda: _main_session
+def get_main_session():
+	return _main_session
 
 
 def get_api(session=None):
@@ -45,15 +46,16 @@ def _get_all_tool(method, count, **params):
 	return vk_api.VkTools(get_main_session()).get_all_iter(method, count, params)
 
 
-rg_creator = lambda *t: partial(_get_all_tool, *t)
+def rg_creator(*t):
+	return partial(_get_all_tool, *t)
+
 
 raw_get_posts = rg_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
 raw_get_comments = rg_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
 raw_get_groups = rg_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
 raw_get_friends = rg_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
 _raw_get_subscrs = rg_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)  # don't use it
-_is_user = lambda info: info['type'] == 'profile'  # don't use it
-_only_users = partial(filter, _is_user)  # don't use it
+_only_users = partial(filter, lambda info: info['type'] == 'profile')  # don't use it
 raw_get_subscr_users = compose(_only_users, _raw_get_subscrs)
 raw_get_followers = rg_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
 
@@ -107,7 +109,7 @@ class Member(VkObject):
 		return next(self.get_posts_by_ids((post_id,), fields))
 
 
-def _converted_to_member_info(info, screen_name_prefix):
+def _to_member_info(info, screen_name_prefix):
 	info = ObjDict(info)
 
 	if screen_name_prefix == 'club':
@@ -131,7 +133,7 @@ class Openness(IntEnum):
 class Group(Member):
 	def __init__(self, info):
 		self.info = ObjDict(info)
-		super().__init__(_converted_to_member_info(info, 'club'))
+		super().__init__(_to_member_info(info, 'club'))
 
 
 def group_by_id(group_id, fields=''):
@@ -144,7 +146,7 @@ def group_by_id(group_id, fields=''):
 class User(Member):
 	def __init__(self, info):
 		self.info = ObjDict(info)
-		super().__init__(_converted_to_member_info(info, 'id'))
+		super().__init__(_to_member_info(info, 'id'))
 
 	def get_friends(self, fields=''):
 		return map(User, raw_get_friends(
@@ -229,14 +231,14 @@ class Publication(VkObject):
 		return Marked(bool(marked['liked']), bool(marked['copied']))
 
 
-def _converted_to_publication_info(info, commented_member_id=None, commented_publication_id=None):
+def _to_publication_info(info, commented_member_id=None, commented_publication_id=None):
 	info = ObjDict(info)
 
 	owner_id = info.get('owner_id', commented_member_id)
 	if commented_publication_id is None:
 		url_end = info.id
 	else:
-		url_end = '{}?reply={}'.format(commented_publication_id, info.id),
+		url_end = '{}?reply={}'.format(commented_publication_id, info.id)
 
 	return dict(
 		id=info.id,
@@ -252,7 +254,7 @@ class Post(Publication):
 	def __init__(self, info):
 		self.info = ObjDict(info)
 
-		super().__init__(_converted_to_publication_info(info))
+		super().__init__(_to_publication_info(info))
 		self._to_comment = rpartial(Comment, self.owner_id, self.id)
 
 	def get_comments(self, fields=''):
@@ -277,7 +279,7 @@ class Comment(Publication):
 		self.commented_member_id = commented_member_id
 		self.commented_publication_id = commented_publication_id
 
-		super().__init__(_converted_to_publication_info(info, commented_member_id, commented_publication_id))
+		super().__init__(_to_publication_info(info, commented_member_id, commented_publication_id))
 
 	def __eq__(self, other):
 		return super().__eq__(other) and self.commented_publication_id == other.commented_publication_id
