@@ -1,6 +1,7 @@
 from .config import I_ID
-from .my_vk import get_api, user_by_id, group_by_id
+from .my_vk import get_api, user_by_id, group_by_id, get_group_session
 from funcy import compose
+from enum import unique, IntEnum
 
 
 def id_by_url(url):
@@ -8,8 +9,14 @@ def id_by_url(url):
 	return -resp['object_id'] if resp['type'] == 'group' else resp['object_id']
 
 
+@unique
+class Openness(IntEnum):
+	public, closed, private = range(3)
+
+
 user_by_url = compose(user_by_id, id_by_url)
 group_by_url = compose(group_by_id, id_by_url)
+api_by_token = compose(get_api, get_group_session)
 
 
 def notify(api, message='Выполнение скрипта завершено', user_id=I_ID):

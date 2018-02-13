@@ -1,4 +1,3 @@
-from enum import IntEnum, unique
 import vk_api
 from .config import *
 from collections import namedtuple
@@ -7,11 +6,17 @@ from itertools import chain
 from funcy import rpartial, compose
 
 
-class ObjDict(dict):  # js-like dict
+class ObjDict(dict):
 	def __new__(cls, *args, **kwargs):
 		self = dict.__new__(cls, *args, **kwargs)
 		self.__dict__ = self
 		return self
+
+	def mget(self, *keys, default=None):
+		for key in keys:
+			if key in self:
+				return self[key]
+		return default
 
 
 @lru_cache()
@@ -34,8 +39,7 @@ def set_main_session(new_ms):
 	_main_session = new_ms
 
 
-def get_main_session():
-	return _main_session
+get_main_session = lambda: _main_session
 
 
 def get_api(session=None):
@@ -46,20 +50,21 @@ def _get_all_tool(method, count, **params):
 	return vk_api.VkTools(get_main_session()).get_all_iter(method, count, params)
 
 
-def rg_creator(*t):
+def temp_creator(*t):
 	return partial(_get_all_tool, *t)
 
 
-raw_get_posts = rg_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
-raw_get_comments = rg_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
-raw_get_groups = rg_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
-raw_get_friends = rg_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
-_raw_get_subscrs = rg_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)  # don't use it
-_only_users = partial(filter, lambda info: info['type'] == 'profile')  # don't use it
-raw_get_subscr_users = compose(_only_users, _raw_get_subscrs)
-raw_get_followers = rg_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
+raw_get_posts = temp_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
+raw_get_comments = temp_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
+raw_get_groups = temp_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
+raw_get_friends = temp_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
+raw_get_subscr_users = compose(
+	partial(filter, lambda info: info['type'] == 'profile'),
+	temp_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)
+)
+raw_get_followers = temp_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
 
-del rg_creator
+del temp_creator
 
 
 class VkObject:
@@ -88,6 +93,9 @@ class Member(VkObject):
 
 	def __lt__(self, other):
 		return self.name < other.name
+
+	def __hash__(self):
+		return abs(self.id)
 
 	def __repr__(self):
 		return '{} ({})'.format(self.name, self.url)
@@ -125,11 +133,6 @@ def _to_member_info(info, screen_name_prefix):
 	)
 
 
-@unique
-class Openness(IntEnum):
-	public, closed, private = range(3)
-
-
 class Group(Member):
 	def __init__(self, info):
 		self.info = ObjDict(info)
@@ -148,17 +151,17 @@ class User(Member):
 		self.info = ObjDict(info)
 		super().__init__(_to_member_info(info, 'id'))
 
-	def get_friends(self, fields=''):
-		return map(User, raw_get_friends(
-			user_id=self.id,
-			fields='screen_name,' + fields
-		))
-
 	def get_groups(self, fields=''):
 		return map(Group, raw_get_groups(
 			user_id=self.id,
 			extended=1,
 			fields=fields
+		))
+
+	def get_friends(self, fields=''):
+		return map(User, raw_get_friends(
+			user_id=self.id,
+			fields='screen_name,' + fields
 		))
 
 	def get_subscr_users(self, fields=''):
@@ -170,8 +173,8 @@ class User(Member):
 
 	def get_subscrs(self, fr_fields='', gr_fields='', susr_fields=''):
 		return chain(
-			self.get_friends(fields=fr_fields),
 			self.get_groups(fields=gr_fields),
+			self.get_friends(fields=fr_fields),
 			self.get_subscr_users(fields=susr_fields)
 		)
 
@@ -283,3 +286,26 @@ class Comment(Publication):
 
 	def __eq__(self, other):
 		return super().__eq__(other) and self.commented_publication_id == other.commented_publication_id
+
+
+class Chat(VkObject):
+# TODO https://vk.com/dev/objects/chat
+	pass
+
+
+class Message(VkObject):
+# TODO https://vk.com/dev/objects/message
+	pass
+
+
+def to_attachment():
+# TODO https://vk.com/dev/messages.send
+	pass
+
+
+def send_message(peer, message='', attachment=''):
+	return get_api().messages.send(
+		peer_id=peer.mget('chat_special_id', 'id'),
+		message=message,
+		attachment=attachment
+	)
