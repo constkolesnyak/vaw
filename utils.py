@@ -1,5 +1,5 @@
 from .config import I_ID
-from .my_vk import get_api, user_by_id, group_by_id, get_group_session
+from .my_vk import *
 from funcy import compose
 from enum import unique, IntEnum
 
@@ -17,6 +17,12 @@ class Openness(IntEnum):
 user_by_url = compose(user_by_id, id_by_url)
 group_by_url = compose(group_by_id, id_by_url)
 api_by_token = compose(get_api, get_group_session)
+
+
+chat_by_url = compose(
+	chat_by_id,
+	lambda url: url.split('c')[-1]
+)
 
 
 def notify(api, message='Выполнение скрипта завершено', user_id=I_ID):

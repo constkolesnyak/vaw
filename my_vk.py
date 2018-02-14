@@ -4,6 +4,8 @@ from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
 from funcy import rpartial, compose
+from enum import unique, Enum
+
 
 
 class ObjDict(dict):
@@ -289,8 +291,28 @@ class Comment(Publication):
 
 
 class Chat(VkObject):
-# TODO https://vk.com/dev/objects/chat
-	pass
+	def __init__(self, info):
+		self.info = ObjDict(info)
+		_id = info['id']
+		self.chat_special_id = 2000000000 + _id
+
+		super().__init__(dict(
+			id=_id,
+			url=BASE_VK_URL + 'im?sel=c' + str(_id)
+		))
+
+	def retitle(self, new_title):
+		return get_api().messages.editChat(
+			chat_id=self.id,
+			title=new_title
+		)
+
+
+def chat_by_id(chat_id, fields=''):
+	return Chat(get_api().messages.getChat(
+		chat_id=chat_id,
+		fields=fields
+	))
 
 
 class Message(VkObject):
@@ -298,14 +320,23 @@ class Message(VkObject):
 	pass
 
 
-def to_attachment():
-# TODO https://vk.com/dev/messages.send
-	pass
+@unique
+class Attachment(Enum):
+	photo = 'photo'
+	video = 'video'
+	audio = 'audio'
+	doc = 'doc'
+	wall = 'wall'
+	market = 'market'
 
 
-def send_message(peer, message='', attachment=''):
+def to_attachment(att_type, owner_id, media_id):
+	return '{}{}_{}'.format(att_type.value, owner_id, media_id)
+
+
+def send_message(peer, message='', attachments=()):
 	return get_api().messages.send(
 		peer_id=peer.mget('chat_special_id', 'id'),
 		message=message,
-		attachment=attachment
+		attachment=','.join(attachment)
 	)
