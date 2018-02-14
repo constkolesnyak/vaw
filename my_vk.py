@@ -338,5 +338,5 @@ def send_message(peer, message='', attachments=()):
 	return get_api().messages.send(
 		peer_id=peer.mget('chat_special_id', 'id'),
 		message=message,
-		attachment=','.join(attachment)
+		attachment=','.join(attachments)
 	)
