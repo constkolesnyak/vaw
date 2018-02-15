@@ -3,9 +3,7 @@ from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
-from funcy import rpartial, compose
-from enum import unique, Enum
-
+from funcy import rpartial, compose, str_join
 
 
 class ObjDict(dict):
@@ -315,28 +313,14 @@ def chat_by_id(chat_id, fields=''):
 	))
 
 
-class Message(VkObject):
-# TODO https://vk.com/dev/objects/message
-	pass
+def to_attachment(att_type, owner_id, obj_id):
+	return '{}{}_{}'.format(att_type.value, owner_id, obj_id)
 
 
-@unique
-class Attachment(Enum):
-	photo = 'photo'
-	video = 'video'
-	audio = 'audio'
-	doc = 'doc'
-	wall = 'wall'
-	market = 'market'
-
-
-def to_attachment(att_type, owner_id, media_id):
-	return '{}{}_{}'.format(att_type.value, owner_id, media_id)
-
-
-def send_message(peer, message='', attachments=()):
+def send_message(peer, message='', attachments=(), forward_messages=()):
 	return get_api().messages.send(
 		peer_id=peer.mget('chat_special_id', 'id'),
 		message=message,
-		attachment=','.join(attachments)
+		attachment=','.join(attachments),
+		forward_messages=str_join(',', forward_messages)
 	)
