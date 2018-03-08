@@ -23,7 +23,3 @@ chat_by_url = compose(
 	chat_by_id,
 	lambda url: url.split('c')[-1]
 )
-
-
-def notify(api, message='Выполнение скрипта завершено', user_id=I_ID):
-	api.messages.send(user_id=user_id, message=message)

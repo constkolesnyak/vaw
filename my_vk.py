@@ -4,19 +4,7 @@ from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
 from funcy import rpartial, compose, str_join
-
-
-class ObjDict(dict):
-	def __new__(cls, *args, **kwargs):
-		self = dict.__new__(cls, *args, **kwargs)
-		self.__dict__ = self
-		return self
-
-	def mget(self, *keys, default=None):
-		for key in keys:
-			if key in self:
-				return self[key]
-		return default
+from attrdict import AttrDict
 
 
 @lru_cache()
@@ -69,7 +57,7 @@ del temp_creator
 
 class VkObject:
 	def __init__(self, info):
-		info = ObjDict(info)
+		info = AttrDict(info)
 
 		self.id = info.id
 		self.url = info.url
@@ -80,7 +68,7 @@ class VkObject:
 
 class Member(VkObject):
 	def __init__(self, info):
-		info = ObjDict(info)
+		info = AttrDict(info)
 
 		self.name = info.name
 		self.screen_name = info.screen_name
@@ -118,7 +106,7 @@ class Member(VkObject):
 
 
 def _to_member_info(info, screen_name_prefix):
-	info = ObjDict(info)
+	info = AttrDict(info)
 
 	if screen_name_prefix == 'club':
 		info.id = -abs(info.id)
@@ -135,20 +123,23 @@ def _to_member_info(info, screen_name_prefix):
 
 class Group(Member):
 	def __init__(self, info):
-		self.info = ObjDict(info)
+		self.info = AttrDict(info)
 		super().__init__(_to_member_info(info, 'club'))
 
 
-def group_by_id(group_id, fields=''):
-	return Group(get_api().groups.getById(
+def get_group_info(group_id, fields=''):
+	return get_api().groups.getById(
 		group_id=-group_id,
 		fields=fields
-	)[0])
+	)[0]
+
+
+group_by_id = compose(Group, get_group_info)
 
 
 class User(Member):
 	def __init__(self, info):
-		self.info = ObjDict(info)
+		self.info = AttrDict(info)
 		super().__init__(_to_member_info(info, 'id'))
 
 	def get_groups(self, fields=''):
@@ -194,11 +185,14 @@ class User(Member):
 		return bool(get_api().users.isAppUser(user_id=self.id))
 
 
-def user_by_id(user_id, fields=''):
-	return User(get_api().users.get(
+def get_user_info(user_id, fields=''):
+	return get_api().users.get(
 		user_ids=user_id,
 		fields='screen_name,' + fields
-	)[0])
+	)[0]
+
+
+user_by_id = compose(User, get_user_info)
 
 
 Marked = namedtuple('Marked', 'is_liked is_reposted')
@@ -206,7 +200,7 @@ Marked = namedtuple('Marked', 'is_liked is_reposted')
 
 class Publication(VkObject):
 	def __init__(self, info):
-		info = ObjDict(info)
+		info = AttrDict(info)
 
 		self.unixtime = info.unixtime
 		self.text = info.text
@@ -235,7 +229,7 @@ class Publication(VkObject):
 
 
 def _to_publication_info(info, commented_member_id=None, commented_publication_id=None):
-	info = ObjDict(info)
+	info = AttrDict(info)
 
 	owner_id = info.get('owner_id', commented_member_id)
 	if commented_publication_id is None:
@@ -255,7 +249,7 @@ def _to_publication_info(info, commented_member_id=None, commented_publication_i
 
 class Post(Publication):
 	def __init__(self, info):
-		self.info = ObjDict(info)
+		self.info = AttrDict(info)
 
 		super().__init__(_to_publication_info(info))
 		self._to_comment = rpartial(Comment, self.owner_id, self.id)
@@ -277,7 +271,7 @@ class Post(Publication):
 
 class Comment(Publication):
 	def __init__(self, info, commented_member_id, commented_publication_id):
-		self.info = ObjDict(info)
+		self.info = AttrDict(info)
 
 		self.commented_member_id = commented_member_id
 		self.commented_publication_id = commented_publication_id
@@ -290,7 +284,7 @@ class Comment(Publication):
 
 class Chat(VkObject):
 	def __init__(self, info):
-		self.info = ObjDict(info)
+		self.info = AttrDict(info)
 		_id = info['id']
 		self.chat_special_id = 2000000000 + _id
 
@@ -318,9 +312,24 @@ def to_attachment(att_type, owner_id, obj_id):
 
 
 def send_message(peer, message='', attachments=(), forward_messages=()):
+	try:
+		peer_id = peer.chat_special_id
+	except AttributeError:
+		peer_id = peer.id
+
 	return get_api().messages.send(
-		peer_id=peer.mget('chat_special_id', 'id'),
+		peer_id=peer_id,
 		message=message,
 		attachment=','.join(attachments),
 		forward_messages=str_join(',', forward_messages)
 	)
+
+
+class Bot(Group):
+	def __init__(self, bot_id, token, fields=''):
+		super().__init__(get_group_info(bot_id, fields))
+		self.token = token
+		self.api = get_api(get_group_session(token))
+
+	def notify(message='Выполнение скрипта завершено', user_id=I_ID):
+		self.api.messages.send(user_id=user_id, message=message)
