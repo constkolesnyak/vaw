@@ -5,6 +5,7 @@ from functools import lru_cache, partial
 from itertools import chain
 from funcy import rpartial, compose, str_join
 from attrdict import AttrDict
+from contextlib import contextmanager
 
 
 @lru_cache()
@@ -30,6 +31,18 @@ def set_main_session(new_ms):
 get_main_session = lambda: _main_session
 
 
+@contextmanager
+def change_session(session):
+	orig_session = get_main_session()
+	set_main_session(session)
+	try:
+		yield
+	except:
+		raise
+	finally:
+		set_main_session(orig_session)
+
+
 def get_api(session=None):
 	return get_main_session().get_api() if session is None else session.get_api()
 
@@ -51,6 +64,7 @@ raw_get_subscr_users = compose(
 	temp_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)
 )
 raw_get_followers = temp_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
+raw_get_message_history = temp_creator('messages.getHistory', MAX_MESSAGES_COUNT_PER_REQUEST)
 
 del temp_creator
 
@@ -285,12 +299,10 @@ class Comment(Publication):
 class Chat(VkObject):
 	def __init__(self, info):
 		self.info = AttrDict(info)
-		_id = info['id']
-		self.chat_special_id = 2000000000 + _id
 
 		super().__init__(dict(
-			id=_id,
-			url=BASE_VK_URL + 'im?sel=c' + str(_id)
+			id=2000000000 + self.info.id,
+			url=BASE_VK_URL + 'im?sel=c' + str(self.info.id)
 		))
 
 	def retitle(self, new_title):
@@ -311,25 +323,23 @@ def to_attachment(att_type, owner_id, obj_id):
 	return '{}{}_{}'.format(att_type.value, owner_id, obj_id)
 
 
-def send_message(peer, message='', attachments=(), forward_messages=()):
-	try:
-		peer_id = peer.chat_special_id
-	except AttributeError:
-		peer_id = peer.id
+class Message:
+	def __init__(self, info):
+		self.info = AttrDict(info)
+		self.text = self.info.body
 
+	def __repr__(self):
+		return f'Message({self.text[:5]}...)'
+
+
+def send_message(peer, message='', attachments=(), forward_messages=()):
 	return get_api().messages.send(
-		peer_id=peer_id,
+		peer_id=peer.id,
 		message=message,
 		attachment=','.join(attachments),
 		forward_messages=str_join(',', forward_messages)
 	)
 
 
-class Bot(Group):
-	def __init__(self, bot_id, token, fields=''):
-		super().__init__(get_group_info(bot_id, fields))
-		self.token = token
-		self.api = get_api(get_group_session(token))
-
-	def notify(message='Выполнение скрипта завершено', user_id=I_ID):
-		self.api.messages.send(user_id=user_id, message=message)
+def get_message_history(peer):
+	return map(Message, raw_get_message_history(peer_id=peer.id))

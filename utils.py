@@ -9,6 +9,9 @@ def id_by_url(url):
 	return -resp['object_id'] if resp['type'] == 'group' else resp['object_id']
 
 
+me = user_by_id(I_ID)
+
+
 @unique
 class Openness(IntEnum):
 	public, closed, private = range(3)
@@ -23,3 +26,6 @@ chat_by_url = compose(
 	chat_by_id,
 	lambda url: url.split('c')[-1]
 )
+
+
+get_last_message = compose(next, get_message_history)
