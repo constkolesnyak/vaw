@@ -32,7 +32,7 @@ get_main_session = lambda: _main_session
 
 
 @contextmanager
-def change_session(session):
+def change_main_session(session):
 	orig_session = get_main_session()
 	set_main_session(session)
 	try:
