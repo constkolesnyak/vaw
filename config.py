@@ -1,7 +1,7 @@
 from json import load
 
 
-with open('vk_api_wrap/my_data.json') as f:  # you can change path
+with open('vk_api_wrap/account_data.json') as f:  # you can change path
 	data = load(f)
 
 I_LOGIN = data['login']  # your login (str),

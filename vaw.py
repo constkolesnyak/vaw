@@ -119,6 +119,11 @@ class Member(VkObject):
 		return next(self.get_posts_by_ids((post_id,), fields))
 
 
+def member_id_by_url(url):
+	resp = get_api().utils.resolveScreenName(screen_name=url.split('/')[-1])
+	return -resp['object_id'] if resp['type'] == 'group' else resp['object_id']
+
+
 def _to_member_info(info, screen_name_prefix):
 	info = AttrDict(info)
 
@@ -149,6 +154,7 @@ def get_group_info(group_id, fields=''):
 
 
 group_by_id = compose(Group, get_group_info)
+group_by_url = compose(group_by_id, member_id_by_url)
 
 
 class User(Member):
@@ -207,6 +213,8 @@ def get_user_info(user_id, fields=''):
 
 
 user_by_id = compose(User, get_user_info)
+user_by_url = compose(user_by_id, member_id_by_url)
+me = user_by_id(I_ID)
 
 
 Marked = namedtuple('Marked', 'is_liked is_reposted')
@@ -319,6 +327,9 @@ def chat_by_id(chat_id, fields=''):
 	))
 
 
+chat_by_url = compose(chat_by_id, lambda url: url.split('c')[-1])
+
+
 def to_attachment(att_type, owner_id, obj_id):
 	return '{}{}_{}'.format(att_type.value, owner_id, obj_id)
 
@@ -343,3 +354,6 @@ def send_message(peer, message='', attachments=(), forward_messages=()):
 
 def get_message_history(peer):
 	return map(Message, raw_get_message_history(peer_id=peer.id))
+
+
+get_last_message = compose(next, get_message_history)
