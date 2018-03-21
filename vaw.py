@@ -9,7 +9,7 @@ from contextlib import contextmanager
 
 
 @lru_cache()
-def get_user_session(login=I_LOGIN, password=I_PASSWORD):
+def get_user_session(login, password):
 	session = vk_api.VkApi(login, password)
 	session.auth()
 	return session
@@ -20,12 +20,12 @@ def get_group_session(token):
 	return vk_api.VkApi(token=token)
 
 
-_main_session = get_user_session()
+_main_session = get_user_session(I_LOGIN, I_PASSWORD)
 
 
-def set_main_session(new_ms):
+def set_main_session(session):
 	global _main_session
-	_main_session = new_ms
+	_main_session = session
 
 
 get_main_session = lambda: _main_session
