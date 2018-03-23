@@ -334,15 +334,6 @@ def to_attachment(att_type, owner_id, obj_id):
 	return '{}{}_{}'.format(att_type.value, owner_id, obj_id)
 
 
-class Message:
-	def __init__(self, info):
-		self.info = AttrDict(info)
-		self.text = self.info.body
-
-	def __repr__(self):
-		return f'Message({self.text[:5]}...)'
-
-
 def send_message(peer, message='', attachments=(), forward_messages=()):
 	return get_api().messages.send(
 		peer_id=peer.id,
@@ -350,6 +341,15 @@ def send_message(peer, message='', attachments=(), forward_messages=()):
 		attachment=','.join(attachments),
 		forward_messages=str_join(',', forward_messages)
 	)
+
+
+class Message:
+	def __init__(self, info):
+		self.info = AttrDict(info)
+		self.text = self.info.body
+
+	def __repr__(self):
+		return f'Message({self.text[:5]}...)'
 
 
 def get_message_history(peer):
