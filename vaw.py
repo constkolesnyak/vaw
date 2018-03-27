@@ -20,7 +20,7 @@ def get_group_session(token):
 	return vk_api.VkApi(token=token)
 
 
-_main_session = get_user_session(I_LOGIN, I_PASSWORD)
+_main_session = None
 
 
 def set_main_session(session):
@@ -29,6 +29,14 @@ def set_main_session(session):
 
 
 get_main_session = lambda: _main_session
+
+
+def log_in(login=None, password=None, token=None):
+	if token is None:
+		session = get_user_session(login, password)
+	else:
+		session = get_group_session(token)
+	set_main_session(session)
 
 
 @contextmanager
@@ -51,22 +59,22 @@ def _get_all_tool(method, count, **params):
 	return vk_api.VkTools(get_main_session()).get_all_iter(method, count, params)
 
 
-def temp_creator(*t):
+def temp_func_creator(*t):
 	return partial(_get_all_tool, *t)
 
 
-raw_get_posts = temp_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
-raw_get_comments = temp_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
-raw_get_groups = temp_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
-raw_get_friends = temp_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
+raw_get_posts = temp_func_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
+raw_get_comments = temp_func_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
+raw_get_groups = temp_func_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
+raw_get_friends = temp_func_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
 raw_get_subscr_users = compose(
 	partial(filter, lambda info: info['type'] == 'profile'),
-	temp_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)
+	temp_func_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)
 )
-raw_get_followers = temp_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
-raw_get_message_history = temp_creator('messages.getHistory', MAX_MESSAGES_COUNT_PER_REQUEST)
+raw_get_followers = temp_func_creator('users.getFollowers', MAX_FOLLOWERS_COUNT_PER_REQUEST)
+raw_get_message_history = temp_func_creator('messages.getHistory', MAX_MESSAGES_COUNT_PER_REQUEST)
 
-del temp_creator
+del temp_func_creator
 
 
 class VkObject:
@@ -117,6 +125,9 @@ class Member(VkObject):
 
 	def get_post_by_id(self, post_id, fields=''):
 		return next(self.get_posts_by_ids((post_id,), fields))
+
+	def ban_stories(self):
+		return get_api().stories.banOwner(owners_ids=self.id)
 
 
 def member_id_by_url(url):
@@ -214,7 +225,6 @@ def get_user_info(user_id, fields=''):
 
 user_by_id = compose(User, get_user_info)
 user_by_url = compose(user_by_id, member_id_by_url)
-me = user_by_id(I_ID)
 
 
 Marked = namedtuple('Marked', 'is_liked is_reposted')
