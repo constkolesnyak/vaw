@@ -16,7 +16,7 @@ This is high-level wrapper for [wrapper](https://github.com/python273/vk_api) fo
 
 ## Docs
 
-> Docs is cheap. Show me the [code](https://github.com/mrbirdman2000/vk_api_wrap/blob/master/vaw.py
+> Documentation is cheap. Show me the [code](https://github.com/mrbirdman2000/vk_api_wrap/blob/master/vaw.py
 )!
 
 • *Linus Torvalds*
