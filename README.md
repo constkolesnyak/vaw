@@ -2,11 +2,11 @@
 
 This is high-level wrapper for [wrapper](https://github.com/python273/vk_api) for [shit](https://vk.com/dev/methods).
 
-## Installation \#TODO
+## Installation
 
-	$ pip install vaw
+	$ pip install vaw  # now doesn't work
 
-## Code Example
+## Code example
 
 	from vaw import log_in, user_by_url
 
