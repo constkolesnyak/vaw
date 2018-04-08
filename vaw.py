@@ -40,7 +40,7 @@ def log_in(login=None, password=None, token=None):
 
 
 @contextmanager
-def change_main_session(session):
+def other_main_session(session):
 	orig_session = get_main_session()
 	set_main_session(session)
 	try:
@@ -90,7 +90,7 @@ class VkObject:
 		return self.id == other.id and type(self) == type(other)
 
 
-class Message:
+class VkMessage:
 	def __init__(self, info):
 		self.info = AttrDict(info)
 		self.text = self.info.body
@@ -103,21 +103,24 @@ def make_attachment(type, owner_id, item_id):
 	return f'{type}{owner_id}_{item_id}'
 
 
-class Peer(VkObject):
-	def __init__(self, info, peer_id=None):
+class VkPeer(VkObject):
+	def __init__(self, info, spec_peer_id=None):
 		super().__init__(info)
-		self.peer_id = self.id if peer_id is None else peer_id
+		self.peer_id = self.id if spec_peer_id is None else spec_peer_id
 
-	def send_message(self, message='', attachments=(), forward_messages=()):
+	def send_message(self, message='', attachments=(), forward_messages_ids=()):
 		return get_api().messages.send(
 			peer_id=self.peer_id,
 			message=message,
 			attachment=','.join(attachments),
-			forward_messages=str_join(',', forward_messages)
+			forward_messages=str_join(',', forward_messages_ids),
 		)
 
-	def get_message_history(self):
-		return map(Message, raw_get_message_history(peer_id=self.peer_id))
+	def get_message_history(self, rev=True):
+		return map(VkMessage, raw_get_message_history(
+			peer_id=self.peer_id,
+			rev=not rev
+		))
 
 	def set_typing(self):
 		get_api().messages.setActivity(
@@ -126,53 +129,43 @@ class Peer(VkObject):
 		)
 
 
-class Member(Peer):
+class VkMember(VkPeer):
 	def __init__(self, info):
 		info = AttrDict(info)
 
 		self.name = info.name
 		self.screen_name = info.screen_name
-		self.deactivated = info.deactivated  # str or False
+		self.deactivated = info.deactivated
 
 		super().__init__(dict(
 			id=info.id,
 			url=BASE_VK_URL + self.screen_name
 		))
 
-	def __lt__(self, other):
-		return self.name < other.name
-
-	def __hash__(self):
-		return abs(self.id)
-
 	def __repr__(self):
-		return '{} ({})'.format(self.name, self.url)
+		return f'{self.name} ({self.url})'
 
-	def post(self, message='', attachments=(), friends_only=False, from_group=False, signed=False):
+	def post(self, message='', attachments=(), signed=False):
 		return get_api().wall.post(
 			owner_id=self.id,
 			message=message,
 			attachments=','.join(attachments),
-			friends_only=int(friends_only),
-			from_group=int(from_group),
-			signed=int(signed)
+			signed=signed
 		)['post_id']
 
-	def get_posts(self, fields=''):
-		return map(Post, raw_get_posts(
+	def get_posts(self, filter=''):
+		return map(VkPost, raw_get_posts(
 			owner_id=self.id,
-			fields=fields
+			filter=filter
 		))
 
-	def get_posts_by_ids(self, post_ids, fields=''):
-		prefix = str(self.id) + '_'
-		return map(Post, get_api().wall.getById(
-			posts=','.join(prefix + str(post_id) for post_id in post_ids),
-			fields=fields
+	def get_posts_by_ids(self, post_ids):
+		return map(VkPost, get_api().wall.getById(
+			posts=','.join(f'{self.id}_{post_id}' for post_id in post_ids)
 		))
 
-	def get_post_by_id(self, post_id, fields=''):
-		return next(self.get_posts_by_ids((post_id,), fields))
+	def get_post_by_id(self, post_id):
+		return next(self.get_posts_by_ids((post_id,)))
 
 
 def member_id_by_url(url):
@@ -196,15 +189,16 @@ def _to_member_info(info, screen_name_prefix):
 	)
 
 
-class Group(Member):
+class VkGroup(VkMember):
 	def __init__(self, info):
 		self.info = AttrDict(info)
 		super().__init__(_to_member_info(info, 'club'))
 
-	def get_members(self, fields=''):
-		return map(User, raw_get_group_members(
+	def get_members(self, fields='', filter=''):
+		return map(VkUser, raw_get_group_members(
 			group_id=-self.id,
-			fields='screen_name,' + fields
+			fields='screen_name,' + fields,
+			filter=filter
 		))
 
 
@@ -215,47 +209,48 @@ def get_group_info(group_id, fields=''):
 	)[0]
 
 
-group_by_id = compose(Group, get_group_info)
+group_by_id = compose(VkGroup, get_group_info)
 
 
 def group_by_url(url, fields=''):
 	return group_by_id(member_id_by_url(url), fields)
 
 
-class User(Member):
+class VkUser(VkMember):
 	def __init__(self, info):
 		self.info = AttrDict(info)
 		super().__init__(_to_member_info(info, 'id'))
 
-	def get_groups(self, fields=''):
-		return map(Group, raw_get_groups(
+	def get_groups(self, filter='', fields=''):
+		return map(VkGroup, raw_get_groups(
 			user_id=self.id,
 			extended=1,
+			filter=filter,
 			fields=fields
 		))
 
 	def get_friends(self, fields=''):
-		return map(User, raw_get_friends(
+		return map(VkUser, raw_get_friends(
 			user_id=self.id,
 			fields='screen_name,' + fields
 		))
 
-	def get_subscr_users(self, fields=''):
-		return map(User, raw_get_subscr_users(
+	def get_subscr_users(self, fields=''):  # get users who user is subscribed to
+		return map(VkUser, raw_get_subscr_users(
 			user_id=self.id,
 			extended=1,
 			fields='screen_name,' + fields
 		))
 
-	def get_subscrs(self, fr_fields='', gr_fields='', susr_fields=''):
+	def get_subscrs(self, friends_fields='', groups_fields='', subscr_users_fields=''):
 		return chain(
-			self.get_groups(fields=gr_fields),
-			self.get_friends(fields=fr_fields),
-			self.get_subscr_users(fields=susr_fields)
+			self.get_groups(fields=groups_fields),
+			self.get_friends(fields=friends_fields),
+			self.get_subscr_users(fields=subscr_users_fields)
 		)
 
 	def get_followers(self, fields=''):
-		return map(User, raw_get_followers(
+		return map(VkUser, raw_get_followers(
 			user_id=self.id,
 			fields='screen_name,' + fields
 		))
@@ -286,17 +281,17 @@ def get_user_info(user_id, fields=''):
 	)[0]
 
 
-user_by_id = compose(User, get_user_info)
+user_by_id = compose(VkUser, get_user_info)
 
 
 def user_by_url(url, fields=''):
 	return user_by_id(member_id_by_url(url), fields)
 
 
-Marked = namedtuple('Marked', 'is_liked is_reposted')
+Marked = namedtuple('Marked', 'liked reposted')
 
 
-class Publication(VkObject):
+class VkPublication(VkObject):
 	def __init__(self, info):
 		info = AttrDict(info)
 
@@ -314,7 +309,7 @@ class Publication(VkObject):
 		return super().__eq__(other) and self.owner_id == other.owner_id
 
 	def __repr__(self):
-		return '{} ({})'.format(self.type, self.url)
+		return f'{self.type} ({self.url})'
 
 	def _useful_publ_info(self):
 		return dict(
@@ -336,17 +331,11 @@ class Publication(VkObject):
 	def unlike(self):
 		return get_api().likes.delete(**self._useful_publ_info())
 
-	def get_likers_ids(self, friends_only=False):
+	def get_likers_ids(self, filter='', friends_only=False):
 		return raw_get_likers(
 			**self._useful_publ_info(),
-			friends_only=int(friends_only)
-		)
-
-	def get_reposters_ids(self, friends_only=False):
-		return raw_get_likers(
-			**self._useful_publ_info(),
-			friends_only=int(friends_only),
-			filter='copies'
+			filter=filter,
+			friends_only=friends_only
 		)
 
 	def repost(self, message='', group=None):
@@ -357,21 +346,22 @@ class Publication(VkObject):
 		)['post_id']
 
 
-def _to_publication_info(info, commented_member_id=None, commented_publication_id=None):
+def _to_publication_info(info, commented_publication_id=None):
 	info = AttrDict(info)
 
 	try:
-		owner_id = info['to_id']
-	except KeyError:
-		owner_id = info.get('owner_id', commented_member_id)
+		owner_id = info.owner_id
+	except AttributeError:
+		owner_id = info.from_id
+
 	if commented_publication_id is None:
 		url_end = info.id
 	else:
-		url_end = '{}?reply={}'.format(commented_publication_id, info.id)
+		url_end = f'{commented_publication_id}?reply={info.id}'
 
 	return dict(
 		id=info.id,
-		url='{}wall{}_{}'.format(BASE_VK_URL, owner_id, url_end),
+		url=f'{BASE_VK_URL}wall{owner_id}_{url_end}',
 		unixtime=info.date,
 		text=info.text,
 		owner_id=owner_id,
@@ -379,12 +369,12 @@ def _to_publication_info(info, commented_member_id=None, commented_publication_i
 	)
 
 
-class Post(Publication):
+class VkPost(VkPublication):
 	def __init__(self, info):
 		self.info = AttrDict(info)
 
 		super().__init__(_to_publication_info(info))
-		self._to_comment = rpartial(Comment, self.owner_id, self.id)
+		self._to_comment = rpartial(VkComment, self.owner_id, self.id)
 
 	def _useful_post_info(self):
 		return dict(
@@ -395,11 +385,12 @@ class Post(Publication):
 	def delete(self):
 		return get_api().wall.delete(**self._useful_post_info())
 
-	def get_comments(self, fields=''):
+	def get_comments(self, rev=False, need_likes=False):
 		return map(self._to_comment, raw_get_comments(
 			**self._useful_post_info(),
 			preview_length=0,
-			fields=fields
+			sort='desc' if rev else '',
+			need_likes=need_likes
 		))
 
 	def comment(self, message='', attachments=()):
@@ -416,22 +407,20 @@ class Post(Publication):
 		return get_api().wall.unpin(**self._useful_post_info())
 
 
-def post_by_url(url, fields=''):
+def post_by_url(url):
 	owner, post = url.split('wall')[-1].split('_')
-	return Post(get_api().wall.getById(
+	return VkPost(get_api().wall.getById(
 		posts=owner + '_' + post,
-		fields=fields
 	)[0])
 
 
-class Comment(Publication):
+class VkComment(VkPublication):
 	def __init__(self, info, commented_member_id, commented_publication_id):
 		self.info = AttrDict(info)
+		super().__init__(_to_publication_info(info, commented_publication_id))
 
 		self.commented_member_id = commented_member_id
 		self.commented_publication_id = commented_publication_id
-
-		super().__init__(_to_publication_info(info, commented_member_id, commented_publication_id))
 
 	def __eq__(self, other):
 		return super().__eq__(other) and self.commented_publication_id == other.commented_publication_id
@@ -452,35 +441,35 @@ class Comment(Publication):
 		)
 
 
-class Chat(Peer):
+class VkChat(VkPeer):
 	def __init__(self, info):
 		self.info = AttrDict(info)
+		self.title = info.title
 
 		super().__init__(
 			dict(
 				id=self.info.id,
 				url=BASE_VK_URL + 'im?sel=c' + str(self.info.id)
 			),
-			2000000000 + self.info.id
+			BIG_NUM_FOR_CHATS_IDS + self.info.id
 		)
 
-	def retitle(self, new_title):
+	def retitle(self, title):
 		return get_api().messages.editChat(
 			chat_id=self.id,
-			title=new_title
+			title=title
 		)
 
 	def get_users(self, fields=''):
-		return map(User, get_api().messages.getChatUsers(
+		return map(VkUser, get_api().messages.getChatUsers(
 			chat_id=self.id,
 			fields='screen_name,' + fields
 		))
 
 
-def chat_by_id(chat_id, fields=''):
-	return Chat(get_api().messages.getChat(
+def chat_by_id(chat_id):
+	return VkChat(get_api().messages.getChat(
 		chat_id=chat_id,
-		fields=fields
 	))
 
 
@@ -488,5 +477,4 @@ def chat_id_by_url(url):
 	return int(url.split('c')[-1])
 
 
-def chat_by_url(url, fields=''):
-	return chat_by_id(chat_id_by_url(url), fields)
+chat_by_url = compose(chat_by_id, chat_id_by_url)

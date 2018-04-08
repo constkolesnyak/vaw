@@ -1,10 +1,10 @@
-# VAW (VK API Wrapper)
+# VAW
 
-This is high-level wrapper for [wrapper](https://github.com/python273/vk_api) for [shit](https://vk.com/dev/methods).
+VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for very good low-level [wrapper](https://github.com/python273/vk_api) for [shit](https://vk.com/dev/methods).
 
 ## Installation
 
-	$ pip install vaw  # now doesn't work
+	pip3 install vaw  # yet doesn't work
 
 ## Code example
 
@@ -23,4 +23,8 @@ This is high-level wrapper for [wrapper](https://github.com/python273/vk_api) fo
 
 ## License
 
-This project is licensed under the GNU General Public License – see the LICENSE.md file for detail.
+GNU General Public License.
+
+## PS
+
+Yes, I don't like PEP very much. Yes, I love FP. So sorry for IDE's warnings.
