@@ -94,6 +94,7 @@ class VkMessage:
 	def __init__(self, info):
 		self.info = AttrDict(info)
 		self.text = self.info.body
+		self.unixtime = self.info.date
 
 	def __repr__(self):
 		return f'Message ({self.text[:5]}...)'
