@@ -1,11 +1,23 @@
 import vk_api
 from funcy import rpartial, compose, str_join
 from attrdict import AttrDict
-from .config import *
 from collections import namedtuple
 from functools import lru_cache, partial
 from itertools import chain
 from contextlib import contextmanager
+
+
+BASE_VK_URL = 'https://vk.com/'
+BIG_NUM_FOR_CHATS_IDS = 2000000000
+MAX_POST_COUNT_PER_REQUEST = 100
+MAX_COMMENT_COUNT_PER_REQUEST = 100
+MAX_GROUP_COUNT_PER_REQUEST = 1000
+MAX_FOLLOWERS_COUNT_PER_REQUEST = 1000
+MAX_FRIENDS_COUNT_PER_REQUEST = 5000
+MAX_SUBSCRS_COUNT_PER_REQUEST = 200
+MAX_MESSAGES_COUNT_PER_REQUEST = 200
+MAX_GROUP_MEMBERS_COUNT_PER_REQUEST = 1000
+MAX_LIKERS_COUNT_PER_REQUEST = 1000
 
 
 @lru_cache()

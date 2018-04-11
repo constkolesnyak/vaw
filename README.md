@@ -4,7 +4,7 @@ VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for good low-level [wra
 
 ## Installation
 
-	pip install vaw  # yet doesn't work
+	pip install vaw
 
 ## Code example
 
