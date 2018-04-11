@@ -14,7 +14,7 @@ setup(
 	],
 	platforms=['any'],
 	python_requires='>=3.6',
-	description='This is a high-level wrapper for VK',
+	description='This is a high-level wrapper for VK API',
 	url='https://github.com/mrbirdman2000/vaw',
 	author='mrbirdman2000',
 	author_email='kostya.kolesnyak@yandex.ru',
