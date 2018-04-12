@@ -64,7 +64,7 @@ def other_main_session(session):
 
 
 def get_api(session=None):
-	return get_main_session().get_api() if session is None else session.get_api()
+	return (get_main_session() if session is None else session).get_api()
 
 
 def _get_all_tool(method, count, **params):
@@ -79,7 +79,7 @@ raw_get_posts = temp_func_creator('wall.get', MAX_POST_COUNT_PER_REQUEST)
 raw_get_comments = temp_func_creator('wall.getComments', MAX_COMMENT_COUNT_PER_REQUEST)
 raw_get_groups = temp_func_creator('groups.get', MAX_GROUP_COUNT_PER_REQUEST)
 raw_get_friends = temp_func_creator('friends.get', MAX_FRIENDS_COUNT_PER_REQUEST)
-raw_get_subscr_users = compose(
+raw_get_subscr_users = compose(  # get raw users who user is subscribed to
 	partial(filter, lambda info: info['type'] == 'profile'),
 	temp_func_creator('users.getSubscriptions', MAX_SUBSCRS_COUNT_PER_REQUEST)
 )

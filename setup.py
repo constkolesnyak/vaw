@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
 	name='vaw',
-	version='0.9.1',
+	version='1.0',
 	py_modules=['vaw'],
 	install_requires=[
 		'vk-api==9.3',
@@ -20,7 +20,7 @@ setup(
 	author_email='kostya.kolesnyak@yandex.ru',
 	license='GPL',
 	classifiers=[
-		'Development Status :: 4 - Beta',
+		'Development Status :: 3 - Alpha',
 		'Programming Language :: Python :: 3.6',
 		'Intended Audience :: Developers',
 		'License :: OSI Approved :: GNU General Public License (GPL)',
