@@ -2,3 +2,5 @@
 *.py[co]
 *.idea
 *.DS_Store
+dist/
+vaw.egg-info/
