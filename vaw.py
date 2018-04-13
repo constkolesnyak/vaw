@@ -20,16 +20,22 @@ MAX_GROUP_MEMBERS_COUNT_PER_REQUEST = 1000
 MAX_LIKERS_COUNT_PER_REQUEST = 1000
 
 
+class VkSession:
+	def __init__(self, raw_session):
+		self.raw_session = raw_session
+		self.api = raw_session.get_api()
+
+
 @lru_cache()
 def get_user_session(login, password):
 	session = vk_api.VkApi(login, password)
 	session.auth()
-	return session
+	return VkSession(session)
 
 
 @lru_cache()
 def get_group_session(token):
-	return vk_api.VkApi(token=token)
+	return VkSession(vk_api.VkApi(token=token))
 
 
 _main_session = None
@@ -63,12 +69,12 @@ def other_main_session(session):
 		set_main_session(orig_session)
 
 
-def get_api(session=None):
-	return (get_main_session() if session is None else session).get_api()
+def get_api():
+	return _main_session.api
 
 
 def _get_all_tool(method, count, **params):
-	return vk_api.VkTools(get_main_session()).get_all_iter(method, count, params)
+	return vk_api.VkTools(get_main_session().raw_session).get_all_iter(method, count, params)
 
 
 def temp_func_creator(*t):
