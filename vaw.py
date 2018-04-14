@@ -24,6 +24,7 @@ class VkSession:
 	def __init__(self, raw_session):
 		self.raw_session = raw_session
 		self.api = raw_session.get_api()
+		self.tools = vk_api.VkTools(raw_session)
 
 
 @lru_cache()
@@ -74,7 +75,7 @@ def get_api():
 
 
 def _get_all_tool(method, count, **params):
-	return vk_api.VkTools(get_main_session().raw_session).get_all_iter(method, count, params)
+	return get_main_session().tools.get_all_iter(method, count, params)
 
 
 def temp_func_creator(*t):
