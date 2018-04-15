@@ -318,6 +318,11 @@ class VkPublication(VkObject):
 		self.text = info.text
 		self.owner_id = info.owner_id
 		self.type = info.type
+		self._useful_publ_info = dict(
+			type=self.type,
+			owner_id=self.owner_id,
+			item_id=info.id
+		)
 
 		super().__init__(dict(
 			id=info.id,
@@ -330,36 +335,29 @@ class VkPublication(VkObject):
 	def __repr__(self):
 		return f'{self.type} ({self.url})'
 
-	def _useful_publ_info(self):
-		return dict(
-			type=self.type,
-			owner_id=self.owner_id,
-			item_id=self.id
-		)
-
 	def marked_by(self, user):
 		marked = get_api().likes.isLiked(
 			user_id=user.id,
-			**self._useful_publ_info()
+			**self._useful_publ_info
 		)
 		return Marked(bool(marked['liked']), bool(marked['copied']))
 
 	def like(self):
-		return get_api().likes.add(**self._useful_publ_info())['likes']
+		return get_api().likes.add(**self._useful_publ_info)['likes']
 
 	def unlike(self):
-		return get_api().likes.delete(**self._useful_publ_info())['likes']
+		return get_api().likes.delete(**self._useful_publ_info)['likes']
 
 	def get_likers_ids(self, filter='', friends_only=False):
 		return raw_get_likers(
-			**self._useful_publ_info(),
+			**self._useful_publ_info,
 			filter=filter,
 			friends_only=friends_only
 		)
 
 	def repost(self, message='', group=None):
 		return get_api().wall.repost(
-			object=make_attachment(**self._useful_publ_info()).replace('post', 'wall'),
+			object=make_attachment(**self._useful_publ_info).replace('post', 'wall'),
 			message=message,
 			group_id='' if group is None else -group.id
 		)['post_id']
@@ -391,19 +389,17 @@ class VkPost(VkPublication):
 
 		self.info = AttrDict(info)
 		self._to_comment = rpartial(VkComment, self.owner_id, self.id)
-
-	def _useful_post_info(self):
-		return dict(
+		self._useful_post_info = dict(
 			owner_id=self.owner_id,
 			post_id=self.id
 		)
 
 	def delete(self):
-		return get_api().wall.delete(**self._useful_post_info())
+		return get_api().wall.delete(**self._useful_post_info)
 
 	def get_comments(self, rev=False, need_likes=False):
 		return map(self._to_comment, raw_get_comments(
-			**self._useful_post_info(),
+			**self._useful_post_info,
 			preview_length=0,
 			sort='desc' if rev else '',
 			need_likes=need_likes
@@ -411,16 +407,16 @@ class VkPost(VkPublication):
 
 	def comment(self, message='', attachments=()):
 		return get_api().wall.createComment(
-			**self._useful_post_info(),
+			**self._useful_post_info,
 			message=message,
 			attachments=','.join(attachments)
 		)['comment_id']
 
 	def pin(self):
-		return get_api().wall.pin(**self._useful_post_info())
+		return get_api().wall.pin(**self._useful_post_info)
 
 	def unpin(self):
-		return get_api().wall.unpin(**self._useful_post_info())
+		return get_api().wall.unpin(**self._useful_post_info)
 
 
 def post_by_ids(owner_id, post_id):

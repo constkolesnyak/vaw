@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
 	name='vaw',
-	version='1.2',
+	version='1.3',
 	py_modules=['vaw'],
 	install_requires=[
 		'vk-api==9.3',
