@@ -1,6 +1,6 @@
 # VAW
 
-VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for good low-level [wrapper](https://github.com/python273/vk_api) for [shit](https://vk.com/dev/methods).
+VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for a good low-level [wrapper](https://github.com/python273/vk_api) for [VK API](https://vk.com/dev/methods).
 
 ## Installation
 
@@ -13,6 +13,7 @@ VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for good low-level [wra
 	log_in(VK_LOGIN, VK_PASSWORD)
 	mrbirdman = user_by_url('https://vk.com/kostyakolesnyak')
 	mrbirdman.send('Hi from vaw!')
+	# oAuth is coming...
 
 ## Docs
 
@@ -24,7 +25,3 @@ VAW (**V**K **A**PI **W**rapper) is a high-level wrapper for good low-level [wra
 ## License
 
 GNU General Public License.
-
-## PS
-
-I don't like PEP very much, so sorry for IDE's warnings.
