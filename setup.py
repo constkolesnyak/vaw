@@ -10,7 +10,7 @@ setup(
 		'vk-api==9.3',
 		'funcy==1.10',
 		'attrdict==2.0.0',
-		'setuptools==39.0.1'
+		'setuptools==65.5.1'
 	],
 	platforms=['any'],
 	python_requires='>=3.6',
